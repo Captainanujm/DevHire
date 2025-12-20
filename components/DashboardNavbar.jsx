@@ -58,7 +58,7 @@ export default function DashboardNavbar() {
           <Link href="/dashboard/student/interviews" className="text-gray-300 hover:text-white">
             Interviews
           </Link>
-          <Link href="/resume-tools" className="text-gray-300 hover:text-white">
+          <Link href="/resume-builder" className="text-gray-300 hover:text-white">
             Resume Tools
           </Link>
         </div>
