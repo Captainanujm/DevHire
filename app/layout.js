@@ -22,11 +22,11 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen bg-gradient-to-br from-black via-slate-900 to-black text-white">
+      <body className="min-h-screen antialiased">
         <ThemeProvider attribute="class" defaultTheme="dark">
-         
-            {children}
-        
+
+          {children}
+
         </ThemeProvider>
       </body>
     </html>

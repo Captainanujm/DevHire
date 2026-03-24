@@ -1,88 +1,156 @@
-export const runtime = "nodejs";
-
+// AI answer/code scoring — handles both verbal and coding questions
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import Groq from "groq-sdk";
 
-export async function POST(req) {
-    // ⚠️ FIX: Use secure server-side variable name
-    const apiKey = process.env.GEMINI_API_KEY;
+function getPrompt(question, answer, role, type) {
+    if (type === "coding" || answer.startsWith("[CODE SUBMISSION]")) {
+        const codeOnly = answer.replace("[CODE SUBMISSION]", "").trim();
+        return `You are a senior coding interview evaluator. Evaluate this code submission.
 
-    if (!apiKey) {
-        console.error("❌ SCORE API: GEMINI_API_KEY is not set.");
-        return NextResponse.json(
-            { error: "API Key Missing. Cannot evaluate answer." },
-            { status: 500 }
-        );
+PROBLEM: ${question}
+CANDIDATE'S CODE:
+\`\`\`
+${codeOnly}
+\`\`\`
+ROLE: ${role || "Software Developer"}
+
+Evaluate the code for:
+- Correctness: Does it solve the problem?
+- Time/Space complexity
+- Code quality, naming, readability
+- Edge case handling
+
+Return a JSON object:
+{
+  "correctness": "Correct" or "Partially Correct" or "Incorrect",
+  "technicalScore": number 0-10 (based on correctness, efficiency, quality),
+  "communicationScore": number 0-10 (code readability, naming, structure),
+  "grammarIssues": ["code issues like bugs, edge cases missed"],
+  "fillerWords": [],
+  "missingPoints": ["optimizations or edge cases missed"],
+  "improvement": "Specific advice on how to improve this solution"
+}
+
+Return ONLY valid JSON. No markdown.`;
     }
 
-    try {
-        const { question, answer, role } = await req.json();
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-
-        // ⚠️ FIX: Correct model name format - MUST include "models/" prefix
-        const model = genAI.getGenerativeModel({
-            model: "models/gemini-2.5-flash"
-        });
-
-        const prompt = `
-You are an interview evaluator AI.
-
-Evaluate the following user answer strictly:
+    return `You are a senior interview evaluator. Score this interview answer.
 
 QUESTION: ${question}
+CANDIDATE'S ANSWER: ${answer}
+ROLE: ${role || "Software Developer"}
 
-ANSWER: ${answer}
-
-ROLE: ${role}
-
-Return a JSON EXACTLY in this format:
-
+Return a JSON object:
 {
-  "correctness": "Correct / Partially Correct / Incorrect",
-  "technicalScore": 0-10,
-  "communicationScore": 0-10,
-  "grammarIssues": ["issue1", "issue2"],
-  "fillerWords": ["um", "uh", "..."],
-  "missingPoints": ["point1", "point2"],
-  "improvement": "actionable improvement text"
+  "correctness": "Correct" or "Partially Correct" or "Incorrect",
+  "technicalScore": number 0-10,
+  "communicationScore": number 0-10,
+  "grammarIssues": ["grammar issues, or empty array"],
+  "fillerWords": ["filler words like um, uh, like"],
+  "missingPoints": ["key points missed"],
+  "improvement": "One paragraph of specific, actionable advice"
 }
-ONLY return pure JSON. No explanation.
-`;
 
-        const result = await model.generateContent(prompt);
-        let txt = result.response.text().trim();
+Be fair and constructive. Return ONLY valid JSON. No markdown.`;
+}
 
-        // Robust JSON parsing (handles markdown wrappers)
-        if (txt.startsWith("```json")) {
-            txt = txt.substring(7);
+async function scoreWithGroq(question, answer, role, type) {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) return null;
+
+    const groq = new Groq({ apiKey });
+    const chat = await groq.chat.completions.create({
+        messages: [{ role: "user", content: getPrompt(question, answer, role, type) }],
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.3,
+        max_tokens: 1024,
+    });
+
+    let text = chat.choices[0]?.message?.content?.trim();
+    if (!text) return null;
+
+    text = text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start === -1 || end === -1) return null;
+
+    return JSON.parse(text.substring(start, end + 1));
+}
+
+async function scoreWithGemini(question, answer, role, type) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return null;
+
+    const { GoogleGenerativeAI } = await import("@google/generative-ai");
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    const result = await model.generateContent(getPrompt(question, answer, role, type));
+    let text = result.response.text().trim();
+    text = text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start === -1 || end === -1) return null;
+
+    return JSON.parse(text.substring(start, end + 1));
+}
+
+function validateScore(score) {
+    return {
+        correctness: score.correctness || "N/A",
+        technicalScore: Math.min(10, Math.max(0, Number(score.technicalScore) || 0)),
+        communicationScore: Math.min(10, Math.max(0, Number(score.communicationScore) || 0)),
+        grammarIssues: Array.isArray(score.grammarIssues) ? score.grammarIssues : [],
+        fillerWords: Array.isArray(score.fillerWords) ? score.fillerWords : [],
+        missingPoints: Array.isArray(score.missingPoints) ? score.missingPoints : [],
+        improvement: score.improvement || "No feedback available.",
+    };
+}
+
+export async function POST(req) {
+    try {
+        const { question, answer, role, type } = await req.json();
+
+        if (!question || !answer || answer === "No answer provided") {
+            return NextResponse.json(validateScore({
+                correctness: "No Answer", technicalScore: 0, communicationScore: 0,
+                improvement: "No answer was provided.",
+            }));
         }
-        if (txt.endsWith("```")) {
-            txt = txt.substring(0, txt.length - 3);
+
+        // Try Groq first
+        try {
+            const score = await scoreWithGroq(question, answer, role, type);
+            if (score) {
+                console.log(`✅ Groq score: Tech=${score.technicalScore}, Comm=${score.communicationScore}`);
+                return NextResponse.json(validateScore(score));
+            }
+        } catch (err) {
+            console.warn("Groq scoring failed:", err.message?.substring(0, 100));
         }
-        
-        const jsonStart = txt.indexOf("{");
-        const jsonEnd = txt.lastIndexOf("}");
-        const cleanJson = txt.substring(jsonStart, jsonEnd + 1);
 
-        const score = JSON.parse(cleanJson);
+        // Fallback to Gemini
+        try {
+            const score = await scoreWithGemini(question, answer, role, type);
+            if (score) {
+                console.log(`✅ Gemini score: Tech=${score.technicalScore}, Comm=${score.communicationScore}`);
+                return NextResponse.json(validateScore(score));
+            }
+        } catch (err) {
+            console.warn("Gemini scoring failed:", err.message?.substring(0, 100));
+        }
 
-        return NextResponse.json(score);
+        return NextResponse.json(validateScore({
+            correctness: "Error", technicalScore: 0, communicationScore: 0,
+            grammarIssues: ["AI scoring temporarily unavailable"],
+            improvement: "Scoring system temporarily unavailable.",
+        }));
+
     } catch (error) {
-        console.error("❌ Score API Runtime Error:", error);
-        
-        // Return structured error response
-        return NextResponse.json(
-            { 
-                correctness: "Error",
-                technicalScore: 0,
-                communicationScore: 0,
-                grammarIssues: ["Evaluation API failed."],
-                fillerWords: [],
-                missingPoints: ["Could not score due to API error."],
-                improvement: "Failed to evaluate answer. Check backend logs."
-            },
-            { status: 500 }
-        );
+        console.error("❌ Score API Error:", error.message);
+        return NextResponse.json(validateScore({
+            correctness: "Error", technicalScore: 0, communicationScore: 0,
+            improvement: "Server error occurred.",
+        }), { status: 500 });
     }
 }

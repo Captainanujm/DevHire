@@ -1,17 +1,16 @@
 import DashboardNavbar from "@/components/DashboardNavbar";
+import Sidebar from "@/components/Sidebar";
 
-export default function StudentDashboardLayout({ children }) {
+export default function StudentLayout({ children }) {
   return (
-    <div className="min-h-screen bg-black text-white">
-      
-      {/* FIXED NAVBAR */}
-      <DashboardNavbar userName="Anuj" />
-
-      {/* ADD THIS 👇 TO STOP UI FROM HIDING BEHIND NAVBAR */}
-      <div className="pt-16">
-        {children}
+    <div className="min-h-screen bg-background text-foreground">
+      <Sidebar role="student" />
+      <div className="md:ml-[260px] transition-all duration-300">
+        <DashboardNavbar />
+        <main className="pt-20 px-4 md:px-8 pb-10">
+          {children}
+        </main>
       </div>
-
     </div>
   );
 }

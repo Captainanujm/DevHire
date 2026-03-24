@@ -1,4 +1,4 @@
-'use client'; 
+'use client';
 
 import { useState } from 'react';
 import CardStepper from '@/components/ui/CardStepper';
@@ -7,9 +7,9 @@ import BasicInfoCard from '@/components/resume/forms/BasicInfoCard';
 import ExperienceCard from '@/components/resume/forms/ExperienceCard';
 import EducationCard from '@/components/resume/forms/EducationCard';
 import SkillsCard from '@/components/resume/forms/SkillsCard';
+import { FileText, Download, ChevronLeft } from 'lucide-react';
 
 const steps = [
-  // ... (Steps array remains the same)
   { id: 1, name: 'Basic Info', Component: BasicInfoCard },
   { id: 2, name: 'Experience', Component: ExperienceCard },
   { id: 3, name: 'Education', Component: EducationCard },
@@ -22,7 +22,6 @@ export default function ResumeBuilderPage() {
   const [formData, setFormData] = useState({});
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // ... (handler functions remain the same)
   const updateFormData = (newData) => {
     setFormData(prev => ({ ...prev, ...newData }));
   };
@@ -34,17 +33,15 @@ export default function ResumeBuilderPage() {
   const handlePrev = () => {
     if (step > 1) setStep(step - 1);
   };
-  
-  const handleTemplateSelect = (templateName) => {
-    updateFormData({ template: templateName }); 
-    handleNext(); 
-  };
 
+  const handleTemplateSelect = (templateName) => {
+    updateFormData({ template: templateName });
+    handleNext();
+  };
 
   const handleGenerateResume = async () => {
     setIsGenerating(true);
     try {
-      // Ensure template is selected
       const payload = { ...formData };
       if (!payload.template) payload.template = 'Template1';
 
@@ -62,7 +59,6 @@ export default function ResumeBuilderPage() {
       }
 
       const blob = await response.blob();
-      // Attempt to extract filename from header
       const disp = response.headers.get('Content-Disposition') || '';
       let filename = `${payload.basicInfo?.name || 'DevHire'}_Resume.pdf`;
       const match = disp.match(/filename="?([^";]+)"?/);
@@ -76,7 +72,6 @@ export default function ResumeBuilderPage() {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-
     } catch (error) {
       console.error('Error generating resume:', error);
       alert('An error occurred while generating the resume.');
@@ -88,55 +83,78 @@ export default function ResumeBuilderPage() {
   const CurrentStepComponent = steps.find(s => s.id === step)?.Component;
 
   return (
-    // 🛑 UPDATED: Dark background
-    <div className="min-h-screen bg-slate-900 text-gray-50 p-8"> 
-      <h1 className="text-4xl font-bold text-center text-indigo-400 mb-8">
-        Build Your Tech Future
-      </h1>
+    <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 mb-3">
+            <FileText className="w-6 h-6 text-blue-500" />
+            <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Resume Builder</span>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-500 to-violet-500 bg-clip-text text-transparent">
+            Build Your ATS-Friendly Resume
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Step {step} of {steps.length + 1} — {step <= steps.length ? steps[step - 1]?.name : 'Generate PDF'}
+          </p>
+        </div>
 
-      <CardStepper currentStep={step} steps={steps} /> 
+        <CardStepper currentStep={step} steps={steps} />
 
-      {/* 🛑 UPDATED: Darker card background, subtle border, lighter shadow */}
-      <div className="max-w-3xl mx-auto bg-slate-800 border border-slate-700 shadow-xl rounded-lg p-8 mt-8">
-        
-        {CurrentStepComponent && (
-          <CurrentStepComponent
-            formData={formData}
-            updateFormData={updateFormData}
-            onTemplateSelect={handleTemplateSelect} 
-            onNext={handleNext}
-            onPrev={handlePrev}
-          />
-        )}
-        
-        {/* Final Generation Step (Step 6) */}
-        {step > steps.length && (
-            <div className="text-center">
-                <h2 className="text-2xl font-semibold mb-4 text-indigo-400">Ready Your Tech Resume</h2>
-                <p className="mb-6 text-gray-300">Finalize your resume for DevHire.</p>
-                
-                <button
-                    onClick={handleGenerateResume}
-                    disabled={isGenerating}
-                    // 🛑 UPDATED: Accent color for primary action (Green/Indigo mix from theme)
-                    className={`mt-6 px-8 py-3 font-semibold rounded-lg shadow-md transition duration-300 ${
-                        isGenerating ? 'bg-gray-700 cursor-not-allowed text-gray-400' : 'bg-green-500 text-slate-900 hover:bg-green-400'
-                    }`}
-                >
-                    {isGenerating ? 
-                        (<>Generating... Please Wait</>) : 
-                        (<>Generate & Download PDF</>)
-                    }
-                </button>
-                <button
-                    onClick={() => setStep(steps.length)} 
-                    // 🛑 UPDATED: Secondary color from theme
-                    className="mt-4 block mx-auto text-indigo-400 hover:text-indigo-300"
-                >
-                    Change Template
-                </button>
+        {/* Card */}
+        <div className="glass-card rounded-2xl p-6 md:p-8 mt-8">
+          {CurrentStepComponent && (
+            <CurrentStepComponent
+              formData={formData}
+              updateFormData={updateFormData}
+              onTemplateSelect={handleTemplateSelect}
+              onNext={handleNext}
+              onPrev={handlePrev}
+            />
+          )}
+
+          {/* Final Generation Step */}
+          {step > steps.length && (
+            <div className="text-center py-8 space-y-6">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center mx-auto">
+                <Download className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Your Resume is Ready!</h2>
+                <p className="text-muted-foreground mt-2">Click below to generate and download your ATS-friendly PDF resume.</p>
+              </div>
+
+              <button
+                onClick={handleGenerateResume}
+                disabled={isGenerating}
+                className={`px-8 py-3 font-semibold rounded-xl shadow-lg transition-all ${isGenerating
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                    : 'bg-gradient-to-r from-blue-600 to-violet-600 text-white hover:scale-105 hover:shadow-blue-500/30'
+                  }`}
+              >
+                {isGenerating ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Generating PDF…
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Download className="w-4 h-4" />
+                    Generate & Download PDF
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setStep(steps.length)}
+                className="flex items-center gap-1 mx-auto text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Change Template
+              </button>
             </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

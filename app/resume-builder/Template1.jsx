@@ -1,162 +1,161 @@
 // app/resume-builder/Template1.js
 import React from 'react';
 
-// Using inline CSS for reliable PDF rendering
+// ATS-friendly inline CSS for reliable PDF rendering
 const styles = {
   container: {
     fontFamily: 'Arial, Helvetica, sans-serif',
-    padding: '28px',
+    padding: '32px',
     margin: '0 auto',
     maxWidth: '800px',
     background: '#ffffff',
-    color: '#111827'
+    color: '#111827',
+    lineHeight: '1.5',
   },
-  accentBar: { height: '6px', background: '#4f46e5', marginBottom: '18px', borderRadius: '3px' },
-  header: { marginBottom: '18px', paddingBottom: '8px', borderBottom: '1px solid #e6e9ee' },
-  name: { fontSize: '30px', fontWeight: '700', color: '#0f172a', margin: '0 0 6px 0' },
-  title: { fontSize: '15px', color: '#374151', margin: '0 0 8px 0' },
-  contact: { fontSize: '12px', color: '#6b7280', display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '6px' },
-  twoCol: { display: 'flex', gap: '20px' },
-  leftCol: { flex: '2' },
-  rightCol: { flex: '1', paddingLeft: '12px', borderLeft: '1px solid #f1f5f9' },
-  section: { marginBottom: '18px' },
-  sectionTitle: { fontSize: '13px', fontWeight: '700', color: '#4f46e5', marginBottom: '8px' },
-  listItem: { fontSize: '13px', lineHeight: '1.5', margin: '6px 0' },
-  jobTitle: { fontWeight: '700', display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '14px' },
-  jobTime: { fontSize: '12px', color: '#6b7280' },
-  ul: { paddingLeft: '18px', margin: '0' },
-  skillTag: { display: 'inline-block', background: '#eef2ff', color: '#3730a3', padding: '4px 8px', borderRadius: '999px', fontSize: '12px', margin: '4px 6px 4px 0' }
+  accentBar: { height: '4px', background: '#2563eb', marginBottom: '20px', borderRadius: '2px' },
+  header: { marginBottom: '20px', paddingBottom: '10px', borderBottom: '2px solid #e5e7eb' },
+  name: { fontSize: '28px', fontWeight: '700', color: '#111827', margin: '0 0 4px 0', letterSpacing: '-0.5px' },
+  title: { fontSize: '15px', color: '#374151', margin: '0 0 8px 0', fontWeight: '500' },
+  contact: { fontSize: '11px', color: '#6b7280', display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '6px' },
+  contactItem: { display: 'flex', alignItems: 'center', gap: '4px' },
+  section: { marginBottom: '20px' },
+  sectionTitle: {
+    fontSize: '12px', fontWeight: '700', color: '#2563eb',
+    textTransform: 'uppercase', letterSpacing: '1px',
+    marginBottom: '10px', paddingBottom: '4px',
+    borderBottom: '1px solid #e5e7eb',
+  },
+  summaryText: { fontSize: '13px', lineHeight: '1.6', color: '#374151', margin: '0' },
+  jobBlock: { marginBottom: '14px' },
+  jobHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' },
+  jobTitle: { fontWeight: '700', fontSize: '14px', color: '#111827' },
+  jobCompany: { fontWeight: '400', color: '#4b5563' },
+  jobTime: { fontSize: '11px', color: '#6b7280', flexShrink: '0' },
+  ul: { paddingLeft: '18px', margin: '4px 0 0 0' },
+  listItem: { fontSize: '12px', lineHeight: '1.6', color: '#374151', marginBottom: '2px' },
+  eduBlock: { marginBottom: '8px' },
+  eduHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' },
+  eduDegree: { fontWeight: '600', fontSize: '13px', color: '#111827' },
+  eduInst: { fontWeight: '400', color: '#4b5563' },
+  eduTime: { fontSize: '11px', color: '#6b7280' },
+  skillCategory: { marginBottom: '8px' },
+  skillLabel: { fontSize: '11px', fontWeight: '700', color: '#374151', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' },
+  skillTags: { display: 'flex', flexWrap: 'wrap', gap: '6px' },
+  skillTag: { display: 'inline-block', background: '#eff6ff', color: '#1d4ed8', padding: '3px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: '500' },
 };
-
-const renderList = (items) => (
-    <ul style={styles.ul}>
-      {items && items.map((item, index) => <li key={index} style={styles.listItem}>{item}</li>)}
-    </ul>
-);
 
 const Template1 = ({ data }) => {
   const { basicInfo, summary, experience, education, skills } = data;
-  
+
   return (
     <div style={styles.container}>
       <div style={styles.accentBar} />
-      {/* HEADER / BASIC INFO */}
+
+      {/* HEADER */}
       <header style={styles.header}>
         <h1 style={styles.name}>{basicInfo?.name || 'Your Name'}</h1>
         <h2 style={styles.title}>{basicInfo?.title || 'Professional Title'}</h2>
         <div style={styles.contact}>
-            {basicInfo?.phone && <span>{basicInfo.phone}</span>}
-            {basicInfo?.email && <span>{basicInfo.email}</span>}
-            {basicInfo?.linkedin && <span>{basicInfo.linkedin}</span>}
-            {basicInfo?.location && <span>{basicInfo.location}</span>}
+          {basicInfo?.email && <span style={styles.contactItem}>✉ {basicInfo.email}</span>}
+          {basicInfo?.phone && <span style={styles.contactItem}>☎ {basicInfo.phone}</span>}
+          {basicInfo?.linkedin && <span style={styles.contactItem}>🔗 {basicInfo.linkedin}</span>}
+          {basicInfo?.location && <span style={styles.contactItem}>📍 {basicInfo.location}</span>}
         </div>
       </header>
-      
-      {/* Two-column layout: main content + sidebar */}
-      <div style={styles.twoCol}>
-        <div style={styles.leftCol}>
-          {/* SUMMARY */}
-          {summary && (
-            <section style={styles.section}>
-              <h3 style={styles.sectionTitle}>SUMMARY</h3>
-              <p style={styles.listItem}>{summary}</p>
-            </section>
-          )}
 
-          {/* EXPERIENCE (Renders only if entries exist) */}
-          {(experience && experience.length > 0) && (
-            <section style={styles.section}>
-              <h3 style={styles.sectionTitle}>PROFESSIONAL EXPERIENCE</h3>
-              {experience.map((job, index) => (
-                <div key={index} style={{ marginBottom: '12px' }}>
-                  <div style={styles.jobTitle}>
-                    <span>{job.title} — {job.company}</span>
-                    <span style={styles.jobTime}>{job.startDate || ''} {job.endDate ? `— ${job.endDate}` : ''}</span>
-                  </div>
-                  {/* Filter out empty bullet points */}
-                  {renderList((job.description || []).filter(desc => desc && desc.trim()))} 
-                </div>
-              ))}
-            </section>
-          )}
-
-          {/* EDUCATION */}
-          {(education && education.length > 0) && (
-            <section style={styles.section}>
-              <h3 style={styles.sectionTitle}>EDUCATION</h3>
-              {education.map((edu, index) => (
-                <div key={index} style={{ marginBottom: '8px', fontSize: '13px' }}>
-                  <div style={styles.jobTitle}>
-                    <span>{edu.degree} — {edu.institution}</span>
-                    <span style={styles.jobTime}>{edu.startDate || ''} {edu.endDate ? `— ${edu.endDate}` : ''}</span>
-                  </div>
-                </div>
-              ))}
-            </section>
-          )}
-        </div>
-
-        <aside style={styles.rightCol}>
-          {/* SKILLS */}
-          {(skills) && (
-            <section style={styles.section}>
-              <h3 style={styles.sectionTitle}>TECHNICAL SKILLS</h3>
-              <div>
-                {(skills.languages || '').split(',').map((s, i) => s.trim()).filter(Boolean).map((t, i) => (
-                  <span key={i} style={styles.skillTag}>{t}</span>
-                ))}
-              </div>
-
-              <div style={{ marginTop: '8px' }}>
-                {(skills.frameworks || '').split(',').map(s => s.trim()).filter(Boolean).map((t, i) => (
-                  <span key={`f-${i}`} style={styles.skillTag}>{t}</span>
-                ))}
-              </div>
-              <div style={{ marginTop: '8px' }}>
-                {(skills.databases || '').split(',').map(s => s.trim()).filter(Boolean).map((t, i) => (
-                  <span key={`d-${i}`} style={styles.skillTag}>{t}</span>
-                ))}
-              </div>
-            </section>
-          )}
-        </aside>
-      </div>
-
-      {/* EXPERIENCE (Renders only if entries exist) */}
-      {(experience && experience.length > 0) && (
+      {/* SUMMARY */}
+      {summary && (
         <section style={styles.section}>
-          <h3 style={styles.sectionTitle}>PROFESSIONAL EXPERIENCE</h3>
+          <h3 style={styles.sectionTitle}>Professional Summary</h3>
+          <p style={styles.summaryText}>{summary}</p>
+        </section>
+      )}
+
+      {/* EXPERIENCE */}
+      {experience && experience.length > 0 && (
+        <section style={styles.section}>
+          <h3 style={styles.sectionTitle}>Professional Experience</h3>
           {experience.map((job, index) => (
-            <div key={index} style={{ marginBottom: '15px' }}>
-              <div style={styles.jobTitle}>
-                <span>{job.title} at {job.company}</span>
-                <span style={styles.jobTime}>{job.startDate} - {job.endDate}</span>
+            <div key={index} style={styles.jobBlock}>
+              <div style={styles.jobHeader}>
+                <div>
+                  <span style={styles.jobTitle}>{job.title}</span>
+                  <span style={styles.jobCompany}> — {job.company}</span>
+                </div>
+                <span style={styles.jobTime}>
+                  {job.startDate || ''} {job.endDate ? `– ${job.endDate}` : ''}
+                </span>
               </div>
-              {/* Filter out empty bullet points */}
-              {renderList(job.description.filter(desc => desc))} 
+              {job.description && job.description.filter(d => d && d.trim()).length > 0 && (
+                <ul style={styles.ul}>
+                  {job.description.filter(d => d && d.trim()).map((desc, i) => (
+                    <li key={i} style={styles.listItem}>{desc}</li>
+                  ))}
+                </ul>
+              )}
             </div>
           ))}
         </section>
       )}
 
       {/* EDUCATION */}
-      {(education && education.length > 0) && (
+      {education && education.length > 0 && (
         <section style={styles.section}>
-          <h3 style={styles.sectionTitle}>EDUCATION</h3>
+          <h3 style={styles.sectionTitle}>Education</h3>
           {education.map((edu, index) => (
-            <div key={index} style={{ marginBottom: '5px', fontSize: '13px' }}>
-              <div style={styles.jobTitle}>
-                <span>{edu.degree} - {edu.institution}</span>
-                <span style={styles.jobTime}>{edu.startDate} - {edu.endDate}</span>
+            <div key={index} style={styles.eduBlock}>
+              <div style={styles.eduHeader}>
+                <div>
+                  <span style={styles.eduDegree}>{edu.degree}</span>
+                  <span style={styles.eduInst}> — {edu.institution}</span>
+                </div>
+                <span style={styles.eduTime}>
+                  {edu.startDate || ''} {edu.endDate ? `– ${edu.endDate}` : ''}
+                </span>
               </div>
             </div>
           ))}
         </section>
       )}
 
-      {/* Final spacing (footer area) */}
-      
+      {/* SKILLS */}
+      {skills && (
+        <section style={styles.section}>
+          <h3 style={styles.sectionTitle}>Technical Skills</h3>
+          {skills.languages && (
+            <div style={styles.skillCategory}>
+              <div style={styles.skillLabel}>Languages</div>
+              <div style={styles.skillTags}>
+                {skills.languages.split(',').map(s => s.trim()).filter(Boolean).map((t, i) => (
+                  <span key={i} style={styles.skillTag}>{t}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {skills.frameworks && (
+            <div style={styles.skillCategory}>
+              <div style={styles.skillLabel}>Frameworks & Libraries</div>
+              <div style={styles.skillTags}>
+                {skills.frameworks.split(',').map(s => s.trim()).filter(Boolean).map((t, i) => (
+                  <span key={`f-${i}`} style={styles.skillTag}>{t}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {skills.databases && (
+            <div style={styles.skillCategory}>
+              <div style={styles.skillLabel}>Databases & Tools</div>
+              <div style={styles.skillTags}>
+                {skills.databases.split(',').map(s => s.trim()).filter(Boolean).map((t, i) => (
+                  <span key={`d-${i}`} style={styles.skillTag}>{t}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 };
+
 export default Template1;

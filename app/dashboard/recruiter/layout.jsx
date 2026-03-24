@@ -1,15 +1,16 @@
-// import RecruiterNavbar from "@/components/RecruiterNavbar";
+import DashboardNavbar from "@/components/DashboardNavbar";
+import Sidebar from "@/components/Sidebar";
 
-// export default function RecruiterDashboardLayout({ children }) {
-//   return (
-//     <div className="min-h-screen bg-black text-white">
-//       {/* RECRUITER NAVBAR */}
-//       {/* <RecruiterNavbar userName="Recruiter" /> */}
-
-//       {/* PAGE CONTENT */}
-//       <div className="pt-20">
-//         {children}
-//       </div>
-//     </div>
-//   );
-// }
+export default function RecruiterLayout({ children }) {
+    return (
+        <div className="min-h-screen bg-background text-foreground">
+            <Sidebar role="recruiter" />
+            <div className="md:ml-[260px] transition-all duration-300">
+                <DashboardNavbar />
+                <main className="pt-20 px-4 md:px-8 pb-10">
+                    {children}
+                </main>
+            </div>
+        </div>
+    );
+}

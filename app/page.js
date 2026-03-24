@@ -1,33 +1,27 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { verifyToken } from "@/lib/auth";
+import LandingPage from "@/components/LandingPage";
 
 export default async function Home() {
-  // MUST await cookies() in Next.js 15+
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
 
-  // If no token → redirect to login
   if (!token) {
-    redirect("/login");
+    return <LandingPage />;
   }
 
   let payload;
   try {
-    payload = verifyToken(token); // decode JWT
+    payload = verifyToken(token);
   } catch (err) {
-    // Invalid or expired token → force login
-    redirect("/login");
+    return <LandingPage />;
   }
 
-  // Extract role from token
   const role = payload.role;
-
-  // Redirect based on role
   if (role === "student") redirect("/dashboard/student");
   if (role === "recruiter") redirect("/dashboard/recruiter");
   if (role === "admin") redirect("/dashboard/admin");
 
-  // Fallback
-  redirect("/login");
+  return <LandingPage />;
 }

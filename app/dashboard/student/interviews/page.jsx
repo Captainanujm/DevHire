@@ -20,7 +20,7 @@ const Page = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 px-6 py-8">
+    <div className="min-h-[calc(100vh-80px)] px-6 py-8">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

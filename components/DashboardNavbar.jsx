@@ -15,13 +15,24 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+
+const studentLinks = [
+  { href: "/dashboard/student/analytics", label: "Analytics" },
+  { href: "/dashboard/student/interviews", label: "Interviews" },
+  { href: "/resume-builder", label: "Resume Tools" }
+];
 
 export default function DashboardNavbar() {
   const { theme, setTheme } = useTheme();
   const [user, setUser] = useState(null);
+  const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
 
-  // ✅ Fetch user profile
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     async function fetchUser() {
       try {
@@ -42,31 +53,39 @@ export default function DashboardNavbar() {
   }, []);
 
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 backdrop-blur-2xl bg-gradient-to-r from-[#0f0f1aa0] via-[#15152790] to-[#0f0f1aa0] border-b border-white/10 shadow-[0_0_40px_rgba(120,60,255,0.25)]">
+    <nav className="fixed top-0 left-0 w-full z-50 backdrop-blur-2xl bg-background/80 border-b border-border shadow-sm">
       <div className="w-full flex items-center justify-between h-16 px-6 md:px-10">
 
         {/* LEFT */}
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
           DevHire
         </h1>
 
         {/* CENTER */}
-        <div className="hidden md:flex items-center gap-10 text-sm font-medium">
-          <Link href="/dashboard/student/analytics" className="text-gray-300 hover:text-white">
-            Analytics
-          </Link>
-          <Link href="/dashboard/student/interviews" className="text-gray-300 hover:text-white">
-            Interviews
-          </Link>
-          <Link href="/resume-builder" className="text-gray-300 hover:text-white">
-            Resume Tools
-          </Link>
+        <div className="hidden md:flex items-center gap-2 text-sm font-medium">
+          {user?.role === "student" && studentLinks.map((link) => {
+             const isActive = pathname.startsWith(link.href);
+             return (
+               <Link key={link.href} href={link.href} className="relative px-4 py-2 rounded-full transition-colors">
+                 {isActive && (
+                   <motion.div
+                     layoutId="navbar-active"
+                     className="absolute inset-0 bg-white/10 dark:bg-white/5 rounded-full"
+                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                   />
+                 )}
+                 <span className={`relative z-10 ${isActive ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"}`}>
+                   {link.label}
+                 </span>
+               </Link>
+             );
+          })}
         </div>
 
         {/* RIGHT */}
         <div className="flex items-center gap-3">
 
-          <Button size="icon" variant="ghost" className="rounded-full bg-white/10">
+          <Button size="icon" variant="ghost" className="rounded-full hover:bg-accent">
             <Bell size={18} />
           </Button>
 
@@ -74,20 +93,20 @@ export default function DashboardNavbar() {
             size="icon"
             variant="ghost"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="rounded-full bg-white/10"
+            className="rounded-full hover:bg-accent"
           >
-            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            {mounted && (theme === "dark" ? <Sun size={18} /> : <Moon size={18} />)}
           </Button>
 
-          {/* ✅ Avatar */}
+          {/* Avatar */}
           <DropdownMenu>
             <DropdownMenuTrigger>
-              <Avatar className="cursor-pointer border border-white/20 bg-white/10">
+              <Avatar className="cursor-pointer border border-border">
                 <AvatarImage
                   src={user?.profileImage || ""}
                   alt="Profile"
                 />
-                <AvatarFallback className="bg-purple-600">
+                <AvatarFallback className="bg-purple-600 text-white">
                   {user?.name?.[0] || "U"}
                 </AvatarFallback>
               </Avatar>
@@ -95,8 +114,13 @@ export default function DashboardNavbar() {
 
             <DropdownMenuContent
               align="end"
-              className="w-40 bg-black/40 backdrop-blur-xl border border-white/10 text-white"
+              className="w-40 bg-popover border border-border text-popover-foreground"
             >
+              {user?.role === "admin" && (
+                <DropdownMenuItem onClick={() => (window.location.href = "/dashboard/admin")} className="font-semibold text-emerald-500">
+                  Admin Portal
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => (window.location.href = "/profile")}>
                 Edit Profile
               </DropdownMenuItem>
@@ -107,7 +131,7 @@ export default function DashboardNavbar() {
                     "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
                   window.location.href = "/login";
                 }}
-                className="text-red-400"
+                className="text-red-500"
               >
                 Logout
               </DropdownMenuItem>

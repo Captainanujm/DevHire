@@ -1,6 +1,8 @@
 // components/resume/forms/EducationCard.js
 import { useState, useEffect } from 'react';
+import { GraduationCap, X } from 'lucide-react';
 
+const inputClass = "w-full p-3 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-colors";
 const emptySchool = { degree: '', institution: '', city: '', startDate: '', endDate: '', gpa: '' };
 
 export default function EducationCard({ formData, updateFormData, onNext, onPrev }) {
@@ -16,7 +18,7 @@ export default function EducationCard({ formData, updateFormData, onNext, onPrev
         setSchools(newSchools);
     };
 
-    const handleAddSchool = () => setSchools([...schools, emptySchool]);
+    const handleAddSchool = () => setSchools([...schools, { ...emptySchool }]);
     const handleRemoveSchool = (index) => setSchools(schools.filter((_, i) => i !== index));
 
     const handleSubmit = (e) => {
@@ -25,72 +27,77 @@ export default function EducationCard({ formData, updateFormData, onNext, onPrev
     };
 
     return (
-        <form onSubmit={handleSubmit}>
-            <h2 className="text-2xl font-bold text-indigo-700 mb-6">3. Education History</h2>
-            <p className="text-sm text-gray-500 mb-4">List your degrees, certifications, and relevant coursework.</p>
+        <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+                <h2 className="text-xl font-bold text-foreground">3. Education</h2>
+                <p className="text-sm text-muted-foreground mt-1">List your degrees, certifications, and relevant coursework.</p>
+            </div>
 
             {schools.map((school, index) => (
-                <div key={index} className="p-4 border border-slate-700 rounded-lg mb-6 bg-slate-800">
-                    <div className="flex justify-between items-start mb-4">
-                        <h3 className="text-xl font-semibold text-gray-100">School / Degree #{index + 1}</h3>
+                <div key={index} className="p-5 rounded-xl border border-border bg-background/50 space-y-4">
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <GraduationCap className="w-4 h-4 text-violet-500" />
+                            <h3 className="font-semibold text-foreground">Education #{index + 1}</h3>
+                        </div>
                         {schools.length > 1 && (
-                            <button 
+                            <button
                                 type="button" onClick={() => handleRemoveSchool(index)}
-                                className="text-red-500 hover:text-red-700 text-sm"
+                                className="text-red-500 hover:text-red-400 text-sm flex items-center gap-1"
                             >
-                                Remove Entry
+                                <X className="w-3.5 h-3.5" /> Remove
                             </button>
                         )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <input type="text" placeholder="Degree (e.g., B.Tech CS)" required={index === 0}
                             value={school.degree} onChange={(e) => handleChange(index, 'degree', e.target.value)}
-                            className="p-2 border border-slate-700 rounded-lg bg-slate-700 text-gray-100 placeholder-gray-400"
+                            className={inputClass}
                         />
                         <input type="text" placeholder="Institution Name" required={index === 0}
                             value={school.institution} onChange={(e) => handleChange(index, 'institution', e.target.value)}
-                            className="p-2 border border-slate-700 rounded-lg bg-slate-700 text-gray-100 placeholder-gray-400"
+                            className={inputClass}
                         />
                         <input type="text" placeholder="City, Country"
                             value={school.city} onChange={(e) => handleChange(index, 'city', e.target.value)}
-                            className="p-2 border border-slate-700 rounded-lg bg-slate-700 text-gray-100 placeholder-gray-400"
+                            className={inputClass}
                         />
-                        <input type="text" placeholder="GPA/Percentage (e.g., 9.5/10)"
+                        <input type="text" placeholder="GPA/Percentage"
                             value={school.gpa} onChange={(e) => handleChange(index, 'gpa', e.target.value)}
-                            className="p-2 border border-slate-700 rounded-lg bg-slate-700 text-gray-100 placeholder-gray-400"
+                            className={inputClass}
                         />
-                        <label className="text-sm text-gray-200 flex items-center">
-                            Start Date: 
+                        <div>
+                            <label className="text-sm text-muted-foreground mb-1 block">Start Date</label>
                             <input type="month" required={index === 0}
                                 value={school.startDate} onChange={(e) => handleChange(index, 'startDate', e.target.value)}
-                                className="p-2 border border-slate-700 rounded-lg bg-slate-700 text-gray-100 placeholder-gray-400 ml-2"
+                                className={inputClass}
                             />
-                        </label>
-                        <label className="text-sm text-gray-200 flex items-center">
-                            End Date: 
+                        </div>
+                        <div>
+                            <label className="text-sm text-muted-foreground mb-1 block">End Date</label>
                             <input type="month" required={index === 0}
                                 value={school.endDate} onChange={(e) => handleChange(index, 'endDate', e.target.value)}
-                                className="p-2 border border-slate-700 rounded-lg bg-slate-700 text-gray-100 placeholder-gray-400 ml-2"
+                                className={inputClass}
                             />
-                        </label>
+                        </div>
                     </div>
                 </div>
             ))}
-            
-            <button 
+
+            <button
                 type="button" onClick={handleAddSchool}
-                className="w-full py-2 border-2 border-dashed border-indigo-300 text-indigo-600 rounded-lg hover:bg-indigo-50 transition mb-6"
+                className="w-full py-3 border-2 border-dashed border-border text-muted-foreground rounded-xl hover:border-violet-500/50 hover:text-violet-500 transition-colors"
             >
                 + Add Another Institution
             </button>
-            
-            <div className="flex justify-between mt-6">
-                <button type="button" onClick={onPrev} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-100">
-                    Previous
+
+            <div className="flex justify-between">
+                <button type="button" onClick={onPrev} className="px-5 py-2 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                    ← Previous
                 </button>
-                <button type="submit" className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition">
-                    Next: Skills
+                <button type="submit" className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-violet-600 text-white font-medium rounded-xl hover:scale-105 transition-transform shadow-lg">
+                    Next: Skills →
                 </button>
             </div>
         </form>
