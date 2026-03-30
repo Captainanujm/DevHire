@@ -19,14 +19,14 @@ export async function POST(req, { params }) {
             return NextResponse.json({ error: "Interview not found" }, { status: 404 });
         }
 
-        // MongoDB aggregation: rank by score DESC, timeTaken ASC
+        // MongoDB aggregation: rank by overallScore DESC, timeTaken ASC
         const ranked = await CandidateAttempt.aggregate([
             { $match: { interviewId: interview._id, status: { $in: ["Submitted", "Pending"] } } },
-            { $sort: { score: -1, timeTaken: 1 } },
+            { $sort: { overallScore: -1, timeTaken: 1 } },
             {
                 $group: {
                     _id: null,
-                    candidates: { $push: { attemptId: "$_id", candidateId: "$candidateId", score: "$score", timeTaken: "$timeTaken" } },
+                    candidates: { $push: { attemptId: "$_id", candidateId: "$candidateId", score: "$overallScore", timeTaken: "$timeTaken" } },
                 },
             },
         ]);

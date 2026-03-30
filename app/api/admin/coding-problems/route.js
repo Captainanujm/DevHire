@@ -32,7 +32,7 @@ export async function POST(req) {
         if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
         const body = await req.json();
-        const { title, difficulty, description, example, tags } = body;
+        const { title, difficulty, description, example, tags, testCases } = body;
         if (!title || !difficulty || !description) {
             return NextResponse.json({ error: "title, difficulty, description are required" }, { status: 400 });
         }
@@ -43,6 +43,7 @@ export async function POST(req) {
             description: description.trim(),
             example: example?.trim() || "",
             tags: Array.isArray(tags) ? tags : [],
+            testCases: Array.isArray(testCases) ? testCases.filter(tc => tc.input && tc.expectedOutput) : [],
             isActive: true,
             createdBy: auth.user.id,
         });

@@ -30,11 +30,11 @@ export async function GET(req) {
             // Mark as expired
             interview.status = "Expired";
 
-            // Run ranking: sort by score DESC, timeTaken ASC
+            // Run ranking: sort by overallScore DESC, timeTaken ASC
             const attempts = await CandidateAttempt.find({
                 interviewId: interview._id,
                 status: { $in: ["Submitted", "Pending"] },
-            }).sort({ score: -1, timeTaken: 1 });
+            }).sort({ overallScore: -1, timeTaken: 1 });
 
             if (attempts.length > 0) {
                 const selectedIds = [];

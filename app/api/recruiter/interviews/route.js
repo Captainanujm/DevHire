@@ -34,35 +34,13 @@ export async function POST(req) {
         const questCount = parseInt(numberOfQuestions);
         const vacCount = parseInt(vacancyCount);
 
-        // Generate questions via Gemini AI
-        const questions = await generateInterviewQuestions(cleanRole, difficulty, questCount);
-
         const slug = crypto.randomUUID();
         const expiresAt = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000); // 5 days
 
         let dailyRoomUrl = null;
         if (interviewType === "Manual") {
-            if (!process.env.DAILY_API_KEY) {
-               return NextResponse.json({ error: "WebRTC Live Setup is missing API Key. Contact admin." }, { status: 500 });
-            }
-            const dailyRes = await fetch("https://api.daily.co/v1/rooms", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${process.env.DAILY_API_KEY}`,
-                },
-                body: JSON.stringify({
-                    properties: {
-                        exp: Math.floor(Date.now() / 1000) + 5 * 24 * 60 * 60,
-                    }
-                })
-            });
-            if (!dailyRes.ok) {
-                const data = await dailyRes.json();
-                return NextResponse.json({ error: "Failed to create live room: " + (data.info || "Unknown") }, { status: 500 });
-            }
-            const roomData = await dailyRes.json();
-            dailyRoomUrl = roomData.url;
+            // Replaced Daily.co paid API with free Jitsi meet URL
+            dailyRoomUrl = `https://meet.jit.si/devhire-${slug}`;
         }
 
         const interview = await RecruiterInterview.create({
@@ -71,7 +49,7 @@ export async function POST(req) {
             jobRole: cleanRole,
             difficulty,
             numberOfQuestions: questCount,
-            questions,
+            questions: [], // Pre-generated questions are no longer needed
             vacancyCount: vacCount,
             expiresAt,
             interviewType: interviewType || "Automated",

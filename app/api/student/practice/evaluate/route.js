@@ -2,8 +2,44 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth";
 import PracticeQuestion from "@/models/PracticeQuestion";
-import { getStaticQuestions } from "@/lib/interviewQuestions";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import Groq from "groq-sdk";
+
+async function evaluateWithGemini(question, answer, role) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return null;
+
+    try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const prompt = `You are an expert interviewer evaluating a practice interview answer.
+
+ROLE: ${role}
+QUESTION: ${question}
+CANDIDATE'S ANSWER: ${answer || "No answer provided"}
+
+Evaluate the answer and respond with a JSON object ONLY:
+{
+  "score": number from 0 to 10,
+  "feedback": "2-3 sentences of constructive feedback",
+  "improvements": ["key point to improve 1", "key point to improve 2"],
+  "sampleAnswer": "A comprehensive sample answer"
+}`;
+
+        const result = await model.generateContent(prompt);
+        let text = result.response.text().trim();
+        text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+        
+        const start = text.indexOf("{");
+        const end = text.lastIndexOf("}");
+        if (start === -1 || end === -1) return null;
+
+        return JSON.parse(text.substring(start, end + 1));
+    } catch (err) {
+        console.warn("Gemini practice eval failed:", err.message);
+        return null;
+    }
+}
 
 async function evaluateWithGroq(question, answer, role) {
     const apiKey = process.env.GROQ_API_KEY;
@@ -68,7 +104,14 @@ export async function POST(req) {
         const results = [];
         for (const item of answers) {
             const dbQ = dbQuestions.find(q => q.question === item.question);
-            let result = await evaluateWithGroq(item.question, item.answer, role);
+            
+            // Try Gemini first
+            let result = await evaluateWithGemini(item.question, item.answer, role);
+            
+            // Fall back to Groq if Gemini fails
+            if (!result) {
+                result = await evaluateWithGroq(item.question, item.answer, role);
+            }
 
             if (!result) {
                 // Fallback if AI fails

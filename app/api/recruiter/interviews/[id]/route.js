@@ -29,7 +29,7 @@ export async function GET(req, { params }) {
         // Get all attempts with candidate info
         const attempts = await CandidateAttempt.find({ interviewId: id })
             .populate("candidateId", "name email")
-            .sort({ score: -1, timeTaken: 1 })
+            .sort({ overallScore: -1, timeTaken: 1 })
             .lean();
 
         return NextResponse.json({
@@ -40,8 +40,8 @@ export async function GET(req, { params }) {
             attempts,
             stats: {
                 totalAttempts: attempts.length,
-                avgScore: attempts.length > 0 ? Math.round(attempts.reduce((a, b) => a + b.score, 0) / attempts.length) : 0,
-                topScore: attempts.length > 0 ? attempts[0].score : 0,
+                avgScore: attempts.length > 0 ? Math.round(attempts.reduce((a, b) => a + (b.overallScore || 0), 0) / attempts.length) : 0,
+                topScore: attempts.length > 0 ? attempts[0].overallScore : 0,
             },
         });
     } catch (err) {

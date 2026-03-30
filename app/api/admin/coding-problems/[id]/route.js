@@ -18,11 +18,16 @@ export async function PUT(req, { params }) {
 
         const { id } = await params;
         const body = await req.json();
-        const { title, difficulty, description, example, tags, isActive } = body;
+        const { title, difficulty, description, example, tags, testCases, isActive } = body;
+
+        const updatePayload = { title, difficulty, description, example, tags, isActive };
+        if (Array.isArray(testCases)) {
+            updatePayload.testCases = testCases.filter(tc => tc.input && tc.expectedOutput);
+        }
 
         const problem = await CodingProblem.findByIdAndUpdate(
             id,
-            { title, difficulty, description, example, tags, isActive },
+            updatePayload,
             { new: true, runValidators: true }
         );
         if (!problem) return NextResponse.json({ error: "Not found" }, { status: 404 });

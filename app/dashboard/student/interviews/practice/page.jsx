@@ -8,7 +8,7 @@ import { INTERVIEW_ROLES, INTERVIEW_DIFFICULTIES, getStaticQuestions } from "@/l
 import {
     BookOpen, ChevronRight, ChevronLeft, RotateCcw, Loader2,
     CheckCircle2, AlertTriangle, Star, Lightbulb, MessageSquare,
-    TrendingUp, ArrowRight,
+    TrendingUp, ArrowRight, Mic,
 } from "lucide-react";
 
 function ScoreBadge({ score }) {
@@ -88,6 +88,64 @@ export default function PracticeMode() {
     }
 
     const setAnswer = (idx, val) => setAnswers(prev => ({ ...prev, [idx]: val }));
+
+    // ──────── SPEECH RECOGNITION ────────
+    const [isListening, setIsListening] = useState(false);
+    
+    function handleListen() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("Speech recognition is not supported in this browser. Please use Chrome.");
+            return;
+        }
+
+        if (isListening) return;
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
+
+        setIsListening(true);
+
+        recognition.onresult = (event) => {
+            let finalTranscript = "";
+            let interimTranscript = "";
+
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript + " ";
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
+            }
+
+            // Append to current answer seamlessly
+            if (finalTranscript) {
+                setAnswers(prev => {
+                    const existing = prev[currentQ] || "";
+                    const newText = (existing.trim() + " " + finalTranscript.trim()).trim();
+                    return { ...prev, [currentQ]: newText };
+                });
+            }
+        };
+
+        recognition.onerror = (event) => {
+            console.error("Speech error", event.error);
+            setIsListening(false);
+        };
+
+        recognition.onend = () => {
+            setIsListening(false);
+        };
+
+        recognition.start();
+
+        // Auto-stop after 30 seconds of listening
+        setTimeout(() => {
+            recognition.stop();
+        }, 30000);
+    }
 
     // ──────── SETUP SCREEN ────────
     if (!started) {
@@ -304,14 +362,29 @@ export default function PracticeMode() {
                 {/* Answer area */}
                 <div className="glass-card rounded-2xl p-6 mb-6">
                     <Textarea
-                        placeholder="Type your answer here... Be as detailed as you can."
+                        placeholder="Type your answer here or click 'Speak' to answer verbally... Be as detailed as you can."
                         value={currentAnswer}
                         onChange={(e) => setAnswer(currentQ, e.target.value)}
-                        className="bg-secondary/50 dark:bg-white/5 border-border dark:border-white/ text-foreground placeholder:text-muted-foreground  min-h-[160px]"
+                        className="bg-secondary/50 dark:bg-white/5 border-border dark:border-white/ text-foreground placeholder:text-muted-foreground  min-h-[160px] mb-3"
                     />
-                    <p className="text-xs text-muted-foreground  mt-2">
-                        {currentAnswer.trim().split(/\s+/).filter(Boolean).length} words
-                    </p>
+                    <div className="flex items-center justify-between">
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleListen}
+                            disabled={isListening}
+                            className={`transition-colors ${isListening ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'text-blue-500 border-blue-500/20 hover:bg-blue-500/10'}`}
+                        >
+                            {isListening ? (
+                                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Listening...</>
+                            ) : (
+                                <><Mic className="h-4 w-4 mr-2" /> Speak Answer</>
+                            )}
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                            {currentAnswer.trim().split(/\s+/).filter(Boolean).length} words
+                        </p>
+                    </div>
                 </div>
 
                 {/* Navigation */}

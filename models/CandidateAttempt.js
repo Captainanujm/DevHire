@@ -8,6 +8,11 @@ const CandidateAttemptSchema = new mongoose.Schema({
         originalIndex: { type: Number, required: true },    // index in the original questions array
         optionMapping: [{ type: Number }],                  // e.g. [2,0,3,1] means option 0 shown = original option 2
     }],
+    // Per-candidate AI-generated questions (live-generated, unique per candidate)
+    generatedQuestions: [{
+        question: { type: String, required: true },
+        type: { type: String, enum: ["verbal", "coding"], default: "verbal" },
+    }],
     answers: [{
         questionIndex: { type: Number, required: true },
         type: { type: String, enum: ["verbal", "coding"], default: "verbal" },

@@ -4,26 +4,7 @@ import { getUserFromRequest } from "@/lib/auth";
 import RecruiterInterview from "@/models/RecruiterInterview";
 import CandidateAttempt from "@/models/CandidateAttempt";
 import User from "@/models/User";
-
-// Fisher-Yates shuffle — returns a new shuffled array with original indices
-function shuffleWithIndices(arr) {
-    const indices = arr.map((_, i) => i);
-    for (let i = indices.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [indices[i], indices[j]] = [indices[j], indices[i]];
-    }
-    return indices; // e.g. [2, 0, 3, 1] — the order to display questions
-}
-
-// Build the candidate's view of questions from a shuffled mapping
-function buildQuestions(questions, shuffledIndices) {
-    return shuffledIndices.map((origIdx, displayIdx) => ({
-        index: origIdx,           // original index — used when scoring
-        displayIndex: displayIdx, // 0-based display order
-        question: questions[origIdx].question,
-        type: questions[origIdx].type || "verbal",
-    }));
-}
+import { fetchQuestionsFromDB } from "@/lib/generateQuestions";
 
 // POST — Start an interview attempt
 export async function POST(req, { params }) {
@@ -45,22 +26,17 @@ export async function POST(req, { params }) {
             return NextResponse.json({ error: "Interview has expired" }, { status: 403 });
         }
 
-        // ── Rate limit: 1 AI interview per calendar day ─────────────────────
+        const isManual = interview.interviewType === "Manual";
+
         const userDoc = await User.findById(user.id);
-        if (userDoc) {
-            const now = new Date();
-            const last = userDoc.lastInterviewAt;
-            if (last) {
-                const sameDay =
-                    last.getFullYear() === now.getFullYear() &&
-                    last.getMonth() === now.getMonth() &&
-                    last.getDate() === now.getDate();
-                if (sameDay) {
-                    return NextResponse.json({
-                        error: "daily_limit",
-                        message: "You have used your free interview for today. Come back tomorrow!"
-                    }, { status: 429 });
-                }
+        if (!userDoc) {
+            return NextResponse.json({ error: "User not found" }, { status: 404 });
+        }
+
+        // ── Guard for Manual Interviews ──
+        if (isManual) {
+            if (!interview.targetCandidate || interview.targetCandidate.email !== userDoc.email) {
+                return NextResponse.json({ error: "You are not authorized to take this targeted interview." }, { status: 403 });
             }
         }
 
@@ -72,13 +48,26 @@ export async function POST(req, { params }) {
 
         if (existing) {
             if (existing.status === "InProgress") {
-                // Resume with saved mapping
-                const mapping = existing.questionMapping || [];
-                const shuffledIndices = mapping.length > 0
-                    ? mapping.map(m => m.originalIndex)
-                    : interview.questions.map((_, i) => i);
+                // Manual interview — resume with just the video call
+                if (isManual) {
+                    return NextResponse.json({
+                        attemptId: existing._id,
+                        questions: [],
+                        jobRole: interview.jobRole,
+                        interviewType: "Manual",
+                        dailyRoomUrl: interview.dailyRoomUrl,
+                        startedAt: existing.startedAt,
+                        resumed: true,
+                    });
+                }
 
-                const questions = buildQuestions(interview.questions, shuffledIndices);
+                // Automated interview — resume with saved AI-generated questions
+                const questions = (existing.generatedQuestions || []).map((q, i) => ({
+                    index: i,
+                    displayIndex: i,
+                    question: q.question,
+                    type: q.type || "verbal",
+                }));
 
                 return NextResponse.json({
                     attemptId: existing._id,
@@ -88,24 +77,56 @@ export async function POST(req, { params }) {
                     dailyRoomUrl: interview.dailyRoomUrl,
                     startedAt: existing.startedAt,
                     resumed: true,
+                    totalQuestions: existing.totalQuestions || 5
                 });
             }
             return NextResponse.json({ error: "You have already attempted this interview" }, { status: 400 });
         }
 
-        // Generate randomized question order for this candidate
-        const shuffledIndices = shuffleWithIndices(interview.questions);
-        const questionMapping = shuffledIndices.map(origIdx => ({
-            originalIndex: origIdx,
-            optionMapping: [], // no MCQ options; kept for schema compatibility
-        }));
+        // ── Rate limit removed for testing ─────────────────────
 
-        // Create new attempt
+
+        // ── Manual Interview: No AI questions, just video call ──────────────
+        if (isManual) {
+            const attempt = await CandidateAttempt.create({
+                interviewId: interview._id,
+                candidateId: user.id,
+                totalQuestions: 0,
+                questionMapping: [],
+                generatedQuestions: [],
+                startedAt: new Date(),
+            });
+
+            if (userDoc) {
+                userDoc.lastInterviewAt = new Date();
+                await userDoc.save();
+            }
+
+            return NextResponse.json({
+                attemptId: attempt._id,
+                questions: [],
+                jobRole: interview.jobRole,
+                interviewType: "Manual",
+                dailyRoomUrl: interview.dailyRoomUrl,
+                startedAt: attempt.startedAt,
+            }, { status: 201 });
+        }
+
+        // ── Automated Interview: Fetch randomized questions from DB ──
+        console.log(`🧠 Fetching randomized DB questions for candidate ${user.id} — ${interview.jobRole} ${interview.difficulty}`);
+        const dbQuestions = await fetchQuestionsFromDB(
+            interview.jobRole,
+            interview.difficulty,
+            interview.numberOfQuestions || 5
+        );
+
+        // Store ALL fetched per-candidate questions in the attempt
         const attempt = await CandidateAttempt.create({
             interviewId: interview._id,
             candidateId: user.id,
-            totalQuestions: interview.questions.length,
-            questionMapping,
+            totalQuestions: interview.numberOfQuestions || 5,
+            questionMapping: Array.from({ length: interview.numberOfQuestions || 5 }).map((_, i) => ({ originalIndex: i, optionMapping: [] })),
+            generatedQuestions: dbQuestions,
             startedAt: new Date(),
         });
 
@@ -115,8 +136,13 @@ export async function POST(req, { params }) {
             await userDoc.save();
         }
 
-        // Build shuffled question list (no answers / options exposed)
-        const questions = buildQuestions(interview.questions, shuffledIndices);
+        // Build question list for the frontend (only pass the first question to start)
+        const questions = dbQuestions.length > 0 ? [{
+            index: 0,
+            displayIndex: 0,
+            question: dbQuestions[0].question,
+            type: dbQuestions[0].type || "verbal",
+        }] : [];
 
         return NextResponse.json({
             attemptId: attempt._id,
@@ -125,6 +151,7 @@ export async function POST(req, { params }) {
             interviewType: interview.interviewType,
             dailyRoomUrl: interview.dailyRoomUrl,
             startedAt: attempt.startedAt,
+            totalQuestions: attempt.totalQuestions
         }, { status: 201 });
     } catch (err) {
         console.error("Start attempt error:", err.message, err.stack);

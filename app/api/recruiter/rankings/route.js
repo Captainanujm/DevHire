@@ -32,7 +32,7 @@ export async function GET(req) {
         // Aggregate all attempts across these interviews
         const rankings = await CandidateAttempt.aggregate([
             { $match: { interviewId: { $in: interviewIds }, status: { $in: ["Submitted", "Selected", "Rejected", "Pending"] } } },
-            { $sort: { score: -1, timeTaken: 1 } },
+            { $sort: { overallScore: -1, timeTaken: 1 } },
             {
                 $lookup: {
                     from: "users",
@@ -54,7 +54,7 @@ export async function GET(req) {
             {
                 $project: {
                     _id: 1,
-                    score: 1,
+                    score: { $round: [{ $divide: [{ $add: ["$technicalScore", "$communicationScore"] }, 20] }, 1] },
                     totalQuestions: 1,
                     timeTaken: 1,
                     violations: 1,
@@ -65,13 +65,7 @@ export async function GET(req) {
                     "interview.jobRole": 1,
                     "interview.difficulty": 1,
                     "interview.slug": 1,
-                    percentage: {
-                        $cond: {
-                            if: { $gt: ["$totalQuestions", 0] },
-                            then: { $round: [{ $multiply: [{ $divide: ["$score", "$totalQuestions"] }, 100] }, 0] },
-                            else: 0,
-                        },
-                    },
+                    percentage: "$overallScore",
                 },
             },
         ]);

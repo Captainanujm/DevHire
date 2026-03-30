@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import Link from "next/link";
 export default function CreateInterviewPage() {
     const router = useRouter();
     const [jobRole, setJobRole] = useState("");
+    const [roles, setRoles] = useState([]);
     const [difficulty, setDifficulty] = useState("Medium");
     const [numberOfQuestions, setNumberOfQuestions] = useState(10);
     const [vacancyCount, setVacancyCount] = useState(1);
@@ -18,6 +19,23 @@ export default function CreateInterviewPage() {
     const [candidatePhone, setCandidatePhone] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+
+    useEffect(() => {
+        async function fetchRoles() {
+            try {
+                const res = await fetch("/api/admin/roles", { credentials: "include" });
+                const data = await res.json();
+                if (res.ok) {
+                    const activeRoles = data.roles?.filter(r => r.isActive) || [];
+                    setRoles(activeRoles);
+                    if (activeRoles.length > 0) setJobRole(activeRoles[0].name);
+                }
+            } catch (err) {
+                console.error("Failed to fetch roles");
+            }
+        }
+        fetchRoles();
+    }, []);
 
     async function handleCreate(e) {
         e.preventDefault();
@@ -96,14 +114,17 @@ export default function CreateInterviewPage() {
                         </div>
                         <div>
                             <label className="text-sm font-medium text-foreground mb-1.5 block">Job Role</label>
-                            <input
-                                type="text"
+                            <select
                                 required
                                 value={jobRole}
                                 onChange={(e) => setJobRole(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl glass-strong text-foreground bg-transparent border border-border focus:border-blue-500 focus:outline-none transition-colors"
-                                placeholder="e.g., React.js Developer, Full Stack Engineer"
-                            />
+                                className="w-full px-4 py-3 rounded-xl glass-strong text-foreground bg-transparent border border-border focus:border-blue-500 focus:outline-none transition-colors appearance-none"
+                            >
+                                <option value="" disabled>Select a predefined role...</option>
+                                {roles.map(r => (
+                                    <option key={r._id} value={r.name}>{r.name}</option>
+                                ))}
+                            </select>
                         </div>
 
                         <div>

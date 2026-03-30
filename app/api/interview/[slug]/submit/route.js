@@ -4,6 +4,7 @@ import { getUserFromRequest } from "@/lib/auth";
 import RecruiterInterview from "@/models/RecruiterInterview";
 import CandidateAttempt from "@/models/CandidateAttempt";
 import Groq from "groq-sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // AI Scoring functions identical to /api/interview/score
 function getPrompt(question, answer, role, type) {
@@ -11,7 +12,7 @@ function getPrompt(question, answer, role, type) {
         const codeOnly = answer.replace("[CODE SUBMISSION]", "").trim();
         return `You are a senior coding interview evaluator. Evaluate this code submission.
 
-PROBLEM: ${question}
+PROBLEM AND TEST CASES: ${question}
 CANDIDATE'S CODE:
 \`\`\`
 ${codeOnly}
@@ -19,7 +20,7 @@ ${codeOnly}
 ROLE: ${role || "Software Developer"}
 
 Evaluate the code for:
-- Correctness: Does it solve the problem?
+- Correctness: Does the codebase solve the problem and handle the provided test cases?
 - Time/Space complexity
 - Code quality, naming, readability
 
@@ -83,6 +84,35 @@ async function scoreWithGroq(question, answer, role, type) {
     }
 }
 
+async function scoreWithGemini(question, answer, role, type) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return null;
+
+    try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const prompt = getPrompt(question, answer, role, type);
+
+        const result = await model.generateContent(prompt);
+        let text = result.response.text().trim();
+        text = text.replace(/^```(?:json)?\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+        
+        const start = text.indexOf("{");
+        const end = text.lastIndexOf("}");
+        if (start === -1 || end === -1) return null;
+
+        const score = JSON.parse(text.substring(start, end + 1));
+        return {
+            technicalScore: Math.min(10, Math.max(0, Number(score.technicalScore) || 0)),
+            communicationScore: Math.min(10, Math.max(0, Number(score.communicationScore) || 0)),
+            feedback: score.feedback || "Feedback unavailable.",
+        };
+    } catch (err) {
+        console.warn("Gemini scoring failed for question:", err.message);
+        return null;
+    }
+}
+
 // POST — Submit interview answers
 export async function POST(req, { params }) {
     try {
@@ -115,16 +145,23 @@ export async function POST(req, { params }) {
         const timeTaken = Math.floor((now - new Date(attempt.startedAt)) / 1000);
 
         // Grade answers using AI
+        // Use the candidate's own AI-generated questions (live-generated per candidate)
+        // Fall back to interview.questions for backward compatibility
+        const scoringQuestions = (attempt.generatedQuestions && attempt.generatedQuestions.length > 0)
+            ? attempt.generatedQuestions
+            : interview.questions;
+
         let totalTechScore = 0;
         let totalCommScore = 0;
         const gradedAnswers = [];
+        let hasGroqRateLimited = false;
 
         if (Array.isArray(answers)) {
-            // Process sequentially to respect AI rate limits
+            // Process sequentially with delays to respect strict AI API burst limits
             for (const ans of answers) {
                 const originalQIndex = parseInt(ans.questionIndex);
-                if (originalQIndex >= 0 && originalQIndex < interview.questions.length) {
-                    const questionObj = interview.questions[originalQIndex];
+                if (originalQIndex >= 0 && originalQIndex < scoringQuestions.length) {
+                    const questionObj = scoringQuestions[originalQIndex];
                     const transcript = ans.transcript || "No answer provided";
                     const isCoding = ans.type === "coding";
 
@@ -133,8 +170,20 @@ export async function POST(req, { params }) {
                     let feedback = "No answer was provided.";
 
                     if (transcript && transcript !== "No answer provided") {
-                        // Score with AI
-                        const scoreData = await scoreWithGroq(questionObj.question, transcript, interview.jobRole, isCoding ? "coding" : "verbal");
+                        let scoreData = null;
+                        
+                        // Attempt Groq first if it hasn't rate limited us yet in this burst
+                        if (!hasGroqRateLimited) {
+                            scoreData = await scoreWithGroq(questionObj.question, transcript, interview.jobRole, isCoding ? "coding" : "verbal");
+                            if (!scoreData) {
+                                hasGroqRateLimited = true;
+                            }
+                        }
+                        
+                        // If Groq rate limited on this or a prior question, fallback to Gemini
+                        if (!scoreData) {
+                            scoreData = await scoreWithGemini(questionObj.question, transcript, interview.jobRole, isCoding ? "coding" : "verbal");
+                        }
                         
                         if (scoreData) {
                             technicalScore = scoreData.technicalScore;
@@ -158,10 +207,16 @@ export async function POST(req, { params }) {
                         fillerWords: ans.fillerWords || {},
                     });
                 }
+                
+                // Extremely important: wait 2.5 seconds before hitting AI endpoints again to prevent 429 Rate Limits
+                await new Promise(resolve => setTimeout(resolve, 2500));
             }
         }
 
-        const maxTotalScore = interview.questions.length * 10;
+        // Use attempt.totalQuestions or scoringQuestions.length, whichever is greater, to prevent inflated scores on early exit
+        const expectedQuestionsCount = Math.max(scoringQuestions.length, attempt.totalQuestions || scoringQuestions.length);
+        const maxTotalScore = expectedQuestionsCount * 10;
+        
         // Overall score is an average of technical and communication (equally weighted for now)
         const overallScore = Math.round(((totalTechScore + totalCommScore) / (maxTotalScore * 2)) * 100) || 0;
 
@@ -188,7 +243,7 @@ export async function POST(req, { params }) {
             communicationScore: totalCommScore,
             overallScore,
             timeTaken: attempt.timeTaken,
-            totalQuestions: interview.questions.length,
+            totalQuestions: scoringQuestions.length,
         });
     } catch (err) {
         console.error("Submit attempt error:", err);

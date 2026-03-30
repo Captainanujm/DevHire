@@ -27,6 +27,12 @@ export async function POST(req) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 400 });
     }
 
+    // Auto-assign admin role for the designated admin email
+    if (cleanEmail === "captainanuj2004@gmail.com" && user.role !== "admin") {
+      user.role = "admin";
+      await user.save();
+    }
+
     const accessToken = signToken({ id: user._id, role: user.role });
     const refreshToken = signRefreshToken({ id: user._id });
 

@@ -5,6 +5,11 @@ const CodingProblemSchema = new mongoose.Schema({
     difficulty: { type: String, enum: ["Easy", "Medium", "Hard"], required: true },
     description: { type: String, required: true },
     example: { type: String, default: "" },
+    testCases: [{
+        input: { type: String, default: "" },
+        expectedOutput: { type: String, default: "" },
+        isHidden: { type: Boolean, default: false }
+    }],
     tags: [{ type: String }],
     isActive: { type: Boolean, default: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

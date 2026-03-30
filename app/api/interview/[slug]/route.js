@@ -54,7 +54,7 @@ export async function GET(req, { params }) {
                 status: interview.status,
                 isExpired,
             },
-            hasAttempted: attemptStatus === "Completed",
+            hasAttempted: attemptStatus && attemptStatus !== "InProgress",
             attemptStatus,
             isAuthenticated: !!user,
         });

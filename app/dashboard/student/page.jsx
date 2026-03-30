@@ -124,6 +124,17 @@ export default function StudentDashboard() {
           setRecentResults((data.results || []).slice(0, 3));
         }
       } catch { }
+
+      // Fetch coding streak
+      try {
+        const res = await fetch("/api/student/coding-problems/potd", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.streak) {
+            setStats(prev => ({ ...prev, streak: data.streak.currentStreak || 0 }));
+          }
+        }
+      } catch { }
     }
     fetchData();
   }, []);

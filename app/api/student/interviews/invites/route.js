@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth";
 import RecruiterInterview from "@/models/RecruiterInterview";
 import CandidateAttempt from "@/models/CandidateAttempt";
+import User from "@/models/User";
 
 // GET — List personalized manual interview invites for the student
 export async function GET(req) {
@@ -11,6 +12,11 @@ export async function GET(req) {
         const user = getUserFromRequest(req);
         if (!user) {
             return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+        }
+
+        const userDoc = await User.findById(user.id);
+        if (!userDoc) {
+            return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
         // Auto-expire overdue interviews
@@ -23,7 +29,7 @@ export async function GET(req) {
         const invites = await RecruiterInterview.find({ 
             status: "Active", 
             interviewType: "Manual",
-            "targetCandidate.email": user.email
+            "targetCandidate.email": userDoc.email
         })
             .select("slug jobRole difficulty numberOfQuestions vacancyCount expiresAt totalAttempts createdAt recruiterId")
             .populate("recruiterId", "name email")

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth";
 import PracticeQuestion from "@/models/PracticeQuestion";
-import { getStaticQuestions, INTERVIEW_ROLES, INTERVIEW_DIFFICULTIES } from "@/lib/interviewQuestions";
+import { getStaticQuestions } from "@/lib/interviewQuestions";
+import { fetchQuestionsFromDB } from "@/lib/generateQuestions";
 
 export async function GET(req) {
     try {
@@ -18,20 +19,22 @@ export async function GET(req) {
             return NextResponse.json({ error: "role and difficulty are required" }, { status: 400 });
         }
 
-        // Fetch from DB first
-        const dbQuestions = await PracticeQuestion.find({ role, difficulty, isActive: true })
-            .select("question")
-            .lean();
+        let questions = [];
+        let source = "static";
 
-        let questions;
-        if (dbQuestions.length > 0) {
-            questions = dbQuestions.map(q => q.question);
-        } else {
-            // Fall back to static questions
-            questions = getStaticQuestions(role, difficulty);
+        // Fetch from DB using our aggregate $sample script (100% reliable random questions)
+        console.log(`Fetching randomized DB practice questions for ${role}`);
+        try {
+            const dbMapped = await fetchQuestionsFromDB(role, difficulty, 5);
+            questions = dbMapped.map(q => q.question);
+            source = "db";
+        } catch (err) {
+            console.warn("Generation failed for practice, falling back to static questions");
+            questions = getStaticQuestions(role, difficulty).slice(0, 5);
+            source = "static";
         }
 
-        return NextResponse.json({ questions, source: dbQuestions.length > 0 ? "db" : "static" });
+        return NextResponse.json({ questions, source });
     } catch (err) {
         console.error("Practice questions fetch error:", err);
         return NextResponse.json({ error: "Server error" }, { status: 500 });

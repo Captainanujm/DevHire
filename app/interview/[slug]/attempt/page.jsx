@@ -1,12 +1,18 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Mic, MicOff, Video, VideoOff, Camera, AlertTriangle, SkipForward, Loader2, Code2, Send, Play, CheckCircle2 } from "lucide-react";
 import AntiCheat from "@/components/AntiCheat";
 import { motion } from "framer-motion";
+import { io } from "socket.io-client";
 
-const Editor = lazy(() => import("@monaco-editor/react"));
+// Monaco Editor breaks on SSR. Dynamic import solves this.
+const Editor = dynamic(() => import("@monaco-editor/react"), { 
+    ssr: false,
+    loading: () => <div className="h-full flex items-center justify-center text-blue-500"><Loader2 className="w-8 h-8 animate-spin" /></div>
+});
 
 const AI_NAME = "Nexus";
 const FILLER_WORDS = ["um", "uh", "like", "you know", "actually", "basically", "so", "right", "well", "literally", "honestly", "i mean"];
@@ -41,46 +47,65 @@ export default function InterviewAttemptPage() {
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [questions, setQuestions] = useState([]);
-    const [currentIdx, setCurrentIdx] = useState(0);
+    const [questions, setQuestionsState] = useState([]);
+    const [currentIdx, setCurrentIdxState] = useState(0);
     const [attemptId, setAttemptId] = useState(null);
     const [interviewData, setInterviewData] = useState(null);
 
     const [question, setQuestion] = useState("");
-    const [questionType, setQuestionType] = useState("verbal");
+    const [questionType, setQuestionTypeState] = useState("verbal");
     const [transcript, setTranscript] = useState("");
     const [timer, setTimer] = useState(120);
     const [isAiTalking, setIsAiTalking] = useState(false);
     const [isScoring, setIsScoring] = useState(false);
+    const [allAnswers, setAllAnswersState] = useState([]);
+    const [totalQuestions, setTotalQuestions] = useState(5);
 
-    const [code, setCode] = useState("// Write your solution here\n\nfunction solution() {\n  \n}\n");
+    const [code, setCodeState] = useState("// Write your solution here\n\nfunction solution() {\n  \n}\n");
     const [codeLang, setCodeLang] = useState("javascript");
     const [codeSubmitted, setCodeSubmitted] = useState(false);
 
     const [micEnabled, setMicEnabled] = useState(true);
     const [videoEnabled, setVideoEnabled] = useState(true);
-    const [cameraPermission, setCameraPermission] = useState("pending");
     const [showCameraWarning, setShowCameraWarning] = useState(false);
-
-    const [fillerCounts, setFillerCounts] = useState({});
-    const totalFillers = Object.values(fillerCounts).reduce((a, b) => a + b, 0);
-
-    const [violations, setViolations] = useState(0);
+    const [cameraPermission, setCameraPermission] = useState("pending"); // pending, granted, denied
     const [submitted, setSubmitted] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
     const [result, setResult] = useState(null);
-
-    // Accumulated answers to send at the end
-    const [allAnswers, setAllAnswers] = useState([]);
+    const [violations, setViolations] = useState(0);
+    const [liveAiQuestion, setLiveAiQuestion] = useState(null);
 
     const videoRef = useRef(null);
+    const remoteVideoRef = useRef(null);
     const streamRef = useRef(null);
+    const socketRef = useRef(null);
+    const peerRef = useRef(null);
     const recognitionRef = useRef(null);
     const timerRef = useRef(null);
     const isSubmittingRef = useRef(false);
     const transcriptRef = useRef("");
     const voiceRef = useRef(null);
+    const isManualRef = useRef(false);
 
-    const TOTAL = questions.length;
+    const [fillerCounts, setFillerCounts] = useState({});
+    const totalFillers = Object.values(fillerCounts).reduce((a, b) => a + b, 0);
+
+    // Refs to avoid stale closures in timer/callbacks
+    const currentIdxRef = useRef(0);
+    const questionsRef = useRef([]);
+    const questionTypeRef = useRef("verbal");
+    const codeRef = useRef("");
+    const allAnswersRef = useRef([]);
+    const handleNextQuestionRef = useRef(null);
+
+    // Wrapper setters that sync state + refs
+    const setQuestions = (val) => { questionsRef.current = val; setQuestionsState(val); };
+    const setCurrentIdx = (val) => { currentIdxRef.current = val; setCurrentIdxState(val); };
+    const setQuestionType = (val) => { questionTypeRef.current = val; setQuestionTypeState(val); };
+    const setCode = (val) => { codeRef.current = val; setCodeState(val); };
+    const setAllAnswers = (val) => { allAnswersRef.current = val; setAllAnswersState(val); };
+
+    const TOTAL = totalQuestions;
 
     // Load voices
     useEffect(() => {
@@ -97,6 +122,18 @@ export default function InterviewAttemptPage() {
             setCameraPermission("granted");
             setShowCameraWarning(false);
             if (videoRef.current) videoRef.current.srcObject = stream;
+            
+            if (peerRef.current) {
+                stream.getTracks().forEach(t => peerRef.current.addTrack(t, stream));
+            }
+
+            try {
+                if (!document.fullscreenElement) {
+                    await document.documentElement.requestFullscreen();
+                }
+            } catch (fsErr) {
+                console.warn("Fullscreen request failed", fsErr);
+            }
         } catch {
             setCameraPermission("denied");
             setShowCameraWarning(true);
@@ -128,19 +165,25 @@ export default function InterviewAttemptPage() {
 
     // =============== INITIAL FETCH ===============
     useEffect(() => {
-        startMedia();
-        fetchInterview();
+        const setup = async () => {
+            await startMedia();
+            fetchInterview();
+        };
+        setup();
+
         return () => {
             try { recognitionRef.current?.stop(); } catch { }
             try { window.speechSynthesis.cancel(); } catch { }
+            clearInterval(speechKeepAliveRef.current);
             streamRef.current?.getTracks().forEach((t) => t.stop());
             clearInterval(timerRef.current);
+            if (socketRef.current) socketRef.current.disconnect();
+            if (peerRef.current) peerRef.current.close();
         };
     }, []);
 
     async function fetchInterview() {
         try {
-            // Check if landing page already pre-fetched the data (avoids double rate-limit hit)
             const cached = sessionStorage.getItem(`interview_${slug}`);
             let data;
             if (cached) {
@@ -159,15 +202,21 @@ export default function InterviewAttemptPage() {
                 }
             }
 
-            setQuestions(data.questions);
+            setQuestions(data.questions || []);
             setAttemptId(data.attemptId);
             setInterviewData(data);
-
-            if (data.questions && data.questions.length > 0) {
-                const first = data.questions[0];
-                setQuestion(first.question);
-                setQuestionType(first.type || "verbal");
-                setTimeout(() => speakQuestion(first.question, first.type || "verbal"), 1500);
+            setTotalQuestions(data.totalQuestions || data.questions?.length || 5);
+            
+            if (data.interviewType === "Manual") {
+                isManualRef.current = true;
+                initWebRTC();
+            } else {
+                if (!data.resumed && data.questions && data.questions.length > 0) {
+                    const first = data.questions[0];
+                    setQuestion(first.question);
+                    setQuestionType(first.type || "verbal");
+                    setTimeout(() => speakQuestion(first.question, first.type || "verbal"), 1500);
+                }
             }
         } catch (err) {
             setError(err.message || "Failed to load interview");
@@ -176,34 +225,145 @@ export default function InterviewAttemptPage() {
         }
     }
 
-    // =============== TTS ===============
+    const initWebRTC = () => {
+        const socket = io("http://localhost:3001");
+        socketRef.current = socket;
+        
+        socket.emit("join-room", slug);
+
+        const peer = new RTCPeerConnection({
+            iceServers: [
+                { urls: "stun:stun.l.google.com:19302" },
+                { urls: "stun:global.stun.twilio.com:3478" }
+            ]
+        });
+        peerRef.current = peer;
+
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(t => peer.addTrack(t, streamRef.current));
+        }
+
+        peer.ontrack = (event) => {
+            if (remoteVideoRef.current && event.streams[0]) {
+                remoteVideoRef.current.srcObject = event.streams[0];
+            }
+        };
+
+        peer.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit("ice-candidate", { roomId: slug, candidate: event.candidate, sender: "candidate" });
+            }
+        };
+
+        socket.on("offer", async (payload) => {
+            if (payload.sender === "recruiter") {
+                // Ensure candidate has added their tracks before answering
+                if (streamRef.current) {
+                    const senders = peer.getSenders();
+                    streamRef.current.getTracks().forEach(t => {
+                        if (!senders.find(s => s.track === t)) {
+                            peer.addTrack(t, streamRef.current);
+                        }
+                    });
+                }
+                
+                await peer.setRemoteDescription(new RTCSessionDescription(payload.offer));
+                const answer = await peer.createAnswer();
+                await peer.setLocalDescription(answer);
+                socket.emit("answer", { roomId: slug, answer, sender: "candidate" });
+            }
+        });
+
+        socket.on("ice-candidate", async (payload) => {
+            if (payload.sender === "recruiter" && payload.candidate) {
+                try {
+                    if (peer.remoteDescription) {
+                        await peer.addIceCandidate(new RTCIceCandidate(payload.candidate));
+                    }
+                } catch(e) {
+                    console.error("Error adding ice candidate", e);
+                }
+            }
+        });
+
+        socket.on("trigger-ai-question", (payload) => {
+            setLiveAiQuestion(payload.question);
+            setIsAiTalking(true);
+            speakQuestion(payload.question, "verbal");
+        });
+
+        socket.on("hide-ai-question", () => {
+            setLiveAiQuestion(null);
+            setIsAiTalking(false);
+            try { window.speechSynthesis.cancel(); } catch {}
+        });
+    };
+
+    // =============== TIMER ===============
+    const showCameraWarningRef = useRef(false);
+    useEffect(() => { showCameraWarningRef.current = showCameraWarning; }, [showCameraWarning]);
+    const speechKeepAliveRef = useRef(null);
+    const lastSpokenQuestionRef = useRef("");
+    const utteranceRef = useRef(null);
+
     const speakQuestion = useCallback((text, type) => {
+        // Prevent speaking the exact same question twice in a row (Chrome onend bug)
+        if (lastSpokenQuestionRef.current === text && window.speechSynthesis.speaking) return;
+        lastSpokenQuestionRef.current = text;
+
+        setIsAiTalking(true);
         try { window.speechSynthesis.cancel(); } catch { }
-        const utter = new SpeechSynthesisUtterance(text);
+        clearInterval(speechKeepAliveRef.current);
+
+        let cleanText = text;
+        const testCaseMatch = text.indexOf("[TEST_CASES]");
+        if (testCaseMatch !== -1) {
+             cleanText = cleanText.substring(0, testCaseMatch).trim();
+        }
+        
+        // Remove code block markdown ticks for smoother speech
+        cleanText = cleanText.replace(/```[a-z]*\n/g, "").replace(/```/g, "");
+
+        const utter = new SpeechSynthesisUtterance(cleanText);
+        utteranceRef.current = utter;
         utter.rate = 0.9;
         utter.pitch = 0.95;
         if (voiceRef.current) utter.voice = voiceRef.current;
 
         utter.onstart = () => {
-            setIsAiTalking(true);
             setTranscript("");
             transcriptRef.current = "";
             setFillerCounts({});
             setCodeSubmitted(false);
+
+            // Chrome workaround: chrome pauses speechSynthesis after ~15s.
+            // Periodically calling pause()/resume() keeps it alive.
+            clearInterval(speechKeepAliveRef.current);
+            speechKeepAliveRef.current = setInterval(() => {
+                if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+                    window.speechSynthesis.pause();
+                    window.speechSynthesis.resume();
+                }
+            }, 10000);
         };
         utter.onend = () => {
+            clearInterval(speechKeepAliveRef.current);
             setIsAiTalking(false);
-            if (!showCameraWarning) {
+            if (!showCameraWarningRef.current && !isManualRef.current) {
                 if (type !== "coding") startListening();
                 startTimer(type);
             }
         };
-        utter.onerror = () => {
+        utter.onerror = (e) => {
+            // "interrupted" fires when we cancel speech intentionally (e.g. moving to next question)
+            // — don't start the timer in that case
+            clearInterval(speechKeepAliveRef.current);
+            if (e.error === "interrupted") return;
             setIsAiTalking(false);
-            if (!showCameraWarning) startTimer(type);
+            if (!showCameraWarningRef.current && !isManualRef.current) startTimer(type);
         };
         window.speechSynthesis.speak(utter);
-    }, [showCameraWarning]);
+    }, []);
 
     // =============== SPEECH RECOGNITION ===============
     const startListening = useCallback(() => {
@@ -218,7 +378,7 @@ export default function InterviewAttemptPage() {
             r.interimResults = true;
             r.onresult = (e) => {
                 let f = "";
-                for (let i = 0; i < e.results.length; i++) {
+                for (let i = e.resultIndex; i < e.results.length; i++) {
                     if (e.results[i].isFinal) f += e.results[i][0].transcript + " ";
                 }
                 if (f.trim()) {
@@ -242,7 +402,7 @@ export default function InterviewAttemptPage() {
         timerRef.current = setInterval(() => {
             t -= 1;
             setTimer(t);
-            if (t <= 0) { clearInterval(timerRef.current); handleNextQuestion(); }
+            if (t <= 0) { clearInterval(timerRef.current); handleNextQuestionRef.current?.(); }
         }, 1000);
     }, []);
 
@@ -255,30 +415,58 @@ export default function InterviewAttemptPage() {
         try { window.speechSynthesis.cancel(); } catch { }
         clearInterval(timerRef.current);
 
-        const isCoding = questionType === "coding";
-        const answer = isCoding ? `[CODE SUBMISSION]\n${code}` : (transcriptRef.current.trim() || "No answer provided");
+        // Read from refs to avoid stale closure values
+        const curIdx = currentIdxRef.current;
+        const curQuestions = questionsRef.current;
+        const curQuestionType = questionTypeRef.current;
+        const curCode = codeRef.current;
+        const curAllAnswers = allAnswersRef.current;
+
+        const isCoding = curQuestionType === "coding";
+        const answer = isCoding ? `[CODE SUBMISSION]\n${curCode}` : (transcriptRef.current.trim() || "No answer provided");
         const answerFillers = countFillerWords(transcriptRef.current);
 
         // Keep local record
         const newAns = {
-            questionIndex: questions[currentIdx].index, // the original index from mapping
-            type: questionType,
+            questionIndex: curQuestions[curIdx]?.index, // the original index from mapping
+            type: curQuestionType,
             transcript: answer,
             fillerCount: Object.values(answerFillers).reduce((a, b) => a + b, 0)
         };
-        const updatedAnswers = [...allAnswers, newAns];
+        const updatedAnswers = [...curAllAnswers, newAns];
         setAllAnswers(updatedAnswers);
 
-        setIsScoring(false);
-
-        const nextIdx = currentIdx + 1;
-        if (nextIdx >= questions.length) {
+        const nextIdx = curIdx + 1;
+        if (nextIdx >= totalQuestions) {
             // FINISH WHOLE INTERVIEW
+            setIsScoring(false);
             submitInterview(updatedAnswers);
             return;
         }
 
-        const nextQ = questions[nextIdx];
+        let nextQ = curQuestions[nextIdx];
+        if (!nextQ) {
+            setQuestion("Generating next AI question... Please wait.");
+            try {
+                const res = await fetch(`/api/interview/${slug}/next`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ currentQuestion: curQuestions[curIdx].question, currentAnswer: answer, questionIndex: curIdx }),
+                    credentials: "include"
+                });
+                const data = await res.json();
+                if (data.isFinished || !data.nextQuestion) {
+                     submitInterview(updatedAnswers); return;
+                }
+                nextQ = data.nextQuestion;
+                setQuestions([...curQuestions, nextQ]);
+            } catch (err) {
+                 console.error("Failed to generate contextual question", err);
+                 submitInterview(updatedAnswers); return;
+            }
+        }
+
+        setIsScoring(false);
+
         setCurrentIdx(nextIdx);
         setQuestion(nextQ.question);
         setQuestionType(nextQ.type || "verbal");
@@ -290,6 +478,9 @@ export default function InterviewAttemptPage() {
         isSubmittingRef.current = false;
         speakQuestion(nextQ.question, nextQ.type || "verbal");
     };
+
+    // Keep the ref always pointing to the latest handleNextQuestion
+    handleNextQuestionRef.current = handleNextQuestion;
 
     const submitInterview = async (finalAnswers) => {
         setSubmitting(true);
@@ -317,7 +508,6 @@ export default function InterviewAttemptPage() {
         if (code.trim().length > 30) setCodeSubmitted(true);
     };
 
-    const [submitting, setSubmitting] = useState(false);
 
     // =============== RENDERERS ===============
 
@@ -357,7 +547,78 @@ export default function InterviewAttemptPage() {
     const timerPercent = (timer / maxTime) * 100;
     const timerColor = timer > maxTime * 0.33 ? "bg-emerald-500" : timer > maxTime * 0.1 ? "bg-amber-500" : "bg-red-500";
     const isCodingQuestion = questionType === "coding";
+    const isManualInterview = interviewData?.interviewType === "Manual";
 
+    // ====== MANUAL INTERVIEW: Pure video call, no AI ======
+    if (isManualInterview) {
+        return (
+            <div className="h-full bg-background relative flex flex-col">
+                <AntiCheat violations={violations} setViolations={setViolations} maxViolations={3} onAutoSubmit={() => submitInterview([])} />
+                {/* Header */}
+                <div className="shrink-0 flex items-center justify-between px-6 py-4 glass-card">
+                    <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
+                        <div>
+                            <h1 className="text-lg font-bold text-foreground">Live Interview</h1>
+                            <p className="text-xs text-muted-foreground">{interviewData?.jobRole} • Video Call with Recruiter</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => {
+                            if (confirm("Are you sure you want to finish and submit this interview?")) {
+                                submitInterview([]);
+                            }
+                        }}
+                        disabled={submitting}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                    >
+                        {submitting ? "Submitting..." : "Finish & Submit"}
+                    </button>
+                </div>
+
+                {/* Full-screen Video Call */}
+                <div className="flex-1 p-4 relative">
+                    <video
+                        ref={remoteVideoRef}
+                        autoPlay
+                        playsInline
+                        className="w-full h-full rounded-2xl border border-border bg-black shadow-[0_0_50px_rgba(0,0,0,0.5)] object-cover"
+                    />
+                    {!remoteVideoRef.current?.srcObject && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="glass-card rounded-2xl p-8 text-center max-w-md animate-pulse">
+                                <Video className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                                <h2 className="text-xl font-bold text-foreground mb-2">Waiting for Recruiter</h2>
+                                <p className="text-muted-foreground">The recruiter will appear here shortly...</p>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {liveAiQuestion && (
+                        <div className="absolute top-8 left-1/2 -translate-x-1/2 w-full max-w-lg z-20">
+                            <div className="glass-card rounded-2xl p-6 bg-black/80 border-blue-500/50 shadow-[0_0_50px_rgba(59,130,246,0.2)] backdrop-blur-xl animate-in slide-in-from-top-10 flex flex-col items-center text-center">
+                                <div className={`w-20 h-20 rounded-full mb-4 bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg ${isAiTalking ? "animate-pulse shadow-blue-500/40" : ""}`}>
+                                    {isAiTalking ? <div className="w-12 h-12 bg-white/20 rounded-full animate-ping" /> : <Mic className="w-8 h-8 text-white/80" />}
+                                </div>
+                                <h3 className="text-blue-400 font-semibold mb-2">Nexus AI</h3>
+                                <p className="text-foreground text-lg leading-relaxed">{liveAiQuestion}</p>
+                            </div>
+                        </div>
+                    )}
+                    
+                    <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="absolute bottom-8 right-8 w-64 aspect-video rounded-xl border-2 border-primary/20 bg-black shadow-2xl object-cover z-10"
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    // ====== AUTOMATED INTERVIEW: AI-powered with TTS ======
     return (
         <div className="h-full bg-background relative px-4 md:px-6 py-4 flex flex-col">
             <AntiCheat violations={violations} setViolations={setViolations} maxViolations={3} onAutoSubmit={() => submitInterview(allAnswers)} />
@@ -433,7 +694,7 @@ export default function InterviewAttemptPage() {
                                     )}
                                 </div>
                                 {interviewData?.interviewType === "Manual" && interviewData?.dailyRoomUrl ? (
-                                    <iframe className="w-full h-48 rounded-xl border border-border object-cover bg-black" src={`${interviewData.dailyRoomUrl}?join=1`} allow="camera; microphone; fullscreen; display-capture"></iframe>
+                                    <iframe className="w-full h-48 rounded-xl border border-border object-cover bg-black" src={`${interviewData.dailyRoomUrl}#config.prejoinPageEnabled=false`} allow="camera; microphone; fullscreen; display-capture"></iframe>
                                 ) : (
                                     <video ref={videoRef} autoPlay playsInline muted className={`w-full h-32 rounded-xl border border-border object-cover bg-black ${videoEnabled ? "" : "opacity-20"}`} />
                                 )}
@@ -452,10 +713,8 @@ export default function InterviewAttemptPage() {
                                     {codeSubmitted ? "Saved" : "Quick Save"}
                                 </button>
                             </div>
-                            <div className="rounded-xl overflow-hidden border border-border flex-1">
-                                <Suspense fallback={<div className="h-full flex items-center justify-center"><Loader2 className="animate-spin" /></div>}>
-                                    <Editor height="100%" language={codeLang} theme="vs-dark" value={code} onChange={(v) => { setCode(v || ""); setCodeSubmitted(false); }} options={{ minimap: { enabled: false } }} />
-                                </Suspense>
+                            <div className="rounded-xl overflow-hidden border border-border flex-1 min-h-[400px]">
+                                <Editor height="100%" language={codeLang} theme="vs-dark" value={code} onChange={(v) => { setCode(v || ""); setCodeSubmitted(false); }} options={{ automaticLayout: true, minimap: { enabled: false }, selectOnLineNumbers: true, formatOnPaste: true, fontSize: 14 }} />
                             </div>
                         </div>
                     </div>
@@ -488,7 +747,7 @@ export default function InterviewAttemptPage() {
                                 )}
                             </div>
                             {interviewData?.interviewType === "Manual" && interviewData?.dailyRoomUrl ? (
-                                <iframe className="w-full aspect-video rounded-xl border border-border object-cover bg-black" src={`${interviewData.dailyRoomUrl}?join=1`} allow="camera; microphone; fullscreen; display-capture"></iframe>
+                                <iframe className="w-full aspect-video rounded-xl border border-border object-cover bg-black" src={`${interviewData.dailyRoomUrl}#config.prejoinPageEnabled=false`} allow="camera; microphone; fullscreen; display-capture"></iframe>
                             ) : (
                                 <video ref={videoRef} autoPlay playsInline muted className={`w-full aspect-video rounded-xl border border-border object-cover bg-black ${videoEnabled ? "" : "opacity-20"}`} />
                             )}

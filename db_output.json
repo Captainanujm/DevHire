@@ -1,0 +1,377 @@
+[
+  {
+    "_id": "69bea088e5c5c7a6a972701d",
+    "interviewId": "69bea00be5c5c7a6a9726fe8",
+    "totalQuestions": 13,
+    "timeTaken": 526,
+    "violations": 2,
+    "answers": []
+  },
+  {
+    "_id": "69c7ec8a3746a1b4c7b5b2b8",
+    "interviewId": "69c7ec113746a1b4c7b5b22b",
+    "overallScore": 0,
+    "totalQuestions": 10,
+    "timeTaken": 494,
+    "violations": 2,
+    "answers": []
+  },
+  {
+    "_id": "69c94057373c2d5839d6b71f",
+    "interviewId": "69c7f1253746a1b4c7b5b3cd",
+    "overallScore": 0,
+    "totalQuestions": 10,
+    "timeTaken": 26,
+    "violations": 2,
+    "answers": [
+      {
+        "questionIndex": 5,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c94072373c2d5839d6b759"
+      },
+      {
+        "questionIndex": 4,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c94072373c2d5839d6b75a"
+      }
+    ]
+  },
+  {
+    "_id": "69c94724373c2d5839d6b839",
+    "interviewId": "69c7f1253746a1b4c7b5b3cd",
+    "overallScore": 0,
+    "totalQuestions": 10,
+    "timeTaken": 16,
+    "violations": 1,
+    "answers": []
+  },
+  {
+    "_id": "69c975941f44dae4afa3e756",
+    "interviewId": "69c9754c1f44dae4afa3e71d",
+    "overallScore": 0,
+    "totalQuestions": 0,
+    "timeTaken": 101,
+    "violations": 0,
+    "answers": []
+  },
+  {
+    "_id": "69c9780b1f44dae4afa3e83a",
+    "interviewId": "69c972881f44dae4afa3e543",
+    "overallScore": 0,
+    "totalQuestions": 10,
+    "timeTaken": 129,
+    "violations": 0,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9788d1f44dae4afa3e985"
+      },
+      {
+        "questionIndex": 1,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9788d1f44dae4afa3e986"
+      },
+      {
+        "questionIndex": 2,
+        "type": "coding",
+        "transcript": "[CODE SUBMISSION]\n// Write your solution here\n\nfunction solution() {\n  \n}\n",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "AI scoring temporarily unavailable.",
+        "_id": "69c9788d1f44dae4afa3e987"
+      },
+      {
+        "questionIndex": 3,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9788d1f44dae4afa3e988"
+      },
+      {
+        "questionIndex": 4,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9788d1f44dae4afa3e989"
+      },
+      {
+        "questionIndex": 5,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9788d1f44dae4afa3e98a"
+      },
+      {
+        "questionIndex": 6,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9788d1f44dae4afa3e98b"
+      },
+      {
+        "questionIndex": 7,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9788d1f44dae4afa3e98c"
+      },
+      {
+        "questionIndex": 8,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9788d1f44dae4afa3e98d"
+      },
+      {
+        "questionIndex": 9,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9788d1f44dae4afa3e98e"
+      }
+    ]
+  },
+  {
+    "_id": "69c9e860b9c9bda55393d571",
+    "interviewId": "69c9e830b9c9bda55393d53f",
+    "overallScore": 0,
+    "totalQuestions": 6,
+    "timeTaken": 60,
+    "violations": 0,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9e89db9c9bda55393d59d"
+      },
+      {
+        "questionIndex": 1,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9e89db9c9bda55393d59e"
+      },
+      {
+        "questionIndex": 2,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9e89db9c9bda55393d59f"
+      },
+      {
+        "questionIndex": 3,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9e89db9c9bda55393d5a0"
+      },
+      {
+        "questionIndex": 4,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9e89db9c9bda55393d5a1"
+      },
+      {
+        "questionIndex": 5,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9e89db9c9bda55393d5a2"
+      }
+    ]
+  },
+  {
+    "_id": "69c9ebe8b9c9bda55393d650",
+    "interviewId": "69c9ebbcb9c9bda55393d62e",
+    "overallScore": 0,
+    "totalQuestions": 2,
+    "timeTaken": 22,
+    "violations": 1,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9ebffb9c9bda55393d664"
+      },
+      {
+        "questionIndex": 1,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9ebffb9c9bda55393d665"
+      }
+    ]
+  },
+  {
+    "_id": "69c9ec4db9c9bda55393d6b9",
+    "interviewId": "69c9ebbcb9c9bda55393d62e",
+    "overallScore": 0,
+    "totalQuestions": 2,
+    "timeTaken": 23,
+    "violations": 1,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9ec65b9c9bda55393d6cd"
+      },
+      {
+        "questionIndex": 1,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9ec65b9c9bda55393d6ce"
+      }
+    ]
+  },
+  {
+    "_id": "69c9ee2ab9c9bda55393d77b",
+    "interviewId": "69c9ee11b9c9bda55393d749",
+    "overallScore": 0,
+    "totalQuestions": 4,
+    "timeTaken": 29,
+    "violations": 1,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9ee47b9c9bda55393d79b"
+      },
+      {
+        "questionIndex": 1,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9ee47b9c9bda55393d79c"
+      },
+      {
+        "questionIndex": 2,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9ee47b9c9bda55393d79d"
+      },
+      {
+        "questionIndex": 3,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9ee47b9c9bda55393d79e"
+      }
+    ]
+  },
+  {
+    "_id": "69c9ee5fb9c9bda55393d7d1",
+    "interviewId": "69c9ee11b9c9bda55393d749",
+    "overallScore": 0,
+    "totalQuestions": 4,
+    "timeTaken": 35,
+    "violations": 0,
+    "answers": [
+      {
+        "questionIndex": 0,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9ee82b9c9bda55393d7f1"
+      },
+      {
+        "questionIndex": 1,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9ee82b9c9bda55393d7f2"
+      },
+      {
+        "questionIndex": 2,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9ee82b9c9bda55393d7f3"
+      },
+      {
+        "questionIndex": 3,
+        "type": "verbal",
+        "transcript": "No answer provided",
+        "technicalScore": 0,
+        "communicationScore": 0,
+        "feedback": "No answer was provided.",
+        "_id": "69c9ee82b9c9bda55393d7f4"
+      }
+    ]
+  }
+]

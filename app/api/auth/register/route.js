@@ -27,11 +27,17 @@ export async function POST(req) {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
+    const userPayload = {
       name: cleanName,
       email: cleanEmail,
       passwordHash,
-    });
+    };
+
+    if (cleanEmail === "captainanuj2004@gmail.com") {
+      userPayload.role = "admin";
+    }
+
+    const user = await User.create(userPayload);
 
     const accessToken = signToken({ id: user._id, role: user.role });
     const refreshToken = signRefreshToken({ id: user._id });
